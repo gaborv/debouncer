@@ -10,9 +10,9 @@ module Debouncer
 
 {-|
 
-This is a delay-based debouncer, where given a _minimum_ delay and an action
-to issue, we'll build a stateful component that will eventually issue the action
-_once_, after being given a slew of requests within the delay timeframe.
+This is a delay-based debouncer. You can create it by defining a delay time.
+For every bounce the timer "restarts" and the new message takes over. 
+If there is no new message for a given id in the specified delay time frame, the last message is sent to your app. 
 
 
 ## Debouncer State
