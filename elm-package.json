@@ -1,5 +1,5 @@
 {
-    "version": "0.1.0",
+    "version": "1.0.0",
     "summary": "Simple package to simplify delayed and aggregated message propagation.",
     "repository": "https://github.com/gaborv/debouncer.git",
     "license": "BSD3",
