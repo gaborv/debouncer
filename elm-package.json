@@ -1,6 +1,6 @@
 {
     "version": "0.1.0",
-    "summary": "Simple package to simplify time-throttling message propogation.",
+    "summary": "Simple package to simplify time-throttling message propagation.",
     "repository": "https://github.com/gaborv/debouncer.git",
     "license": "BSD3",
     "source-directories": [

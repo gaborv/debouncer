@@ -85,7 +85,6 @@ bounce { id, msgToSend } (DebouncerState currentState) =
         counterInc =
             Maybe.map ((+) 1) >> Maybe.withDefault 1 >> Just
 
-        --(currentState.pendingMessages |> Dict.get id |> Maybe.withDefault 0) + 1
         delayedCmd =
             Task.perform
                 (always (DelayExpired id msgToSend))
