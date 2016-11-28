@@ -1,6 +1,6 @@
 # Debouncer
 
-A simple package that let's you aggregate a number of incoming messages and only issue a cmd after a delay.
+A simple package which lets you aggregate a number of incoming messages and trigger some processing only after a delay.<br/>
 For basic usage please look at the following sample.
 
 
