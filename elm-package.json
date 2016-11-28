@@ -1,0 +1,17 @@
+{
+    "version": "0.1.0",
+    "summary": "Simple package to simplify time-throttling message propogation.",
+    "repository": "https://github.com/gaborv/debouncer.git",
+    "license": "BSD3",
+    "source-directories": [
+        "src",
+        "samples"
+    ],
+    "exposed-modules": [
+        "Debouncer"
+    ],
+    "dependencies": {
+        "elm-lang/core": "5.0.0 <= v < 6.0.0"
+    },
+    "elm-version": "0.18.0 <= v < 0.19.0"
+}
