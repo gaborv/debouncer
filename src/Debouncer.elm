@@ -55,9 +55,9 @@ type DebouncerState
 
 {-| Pass these details to the bounce function to start / bounce the debouncer
 -}
-type alias BounceDetails a =
+type alias BounceDetails appMsg =
     { id : Id
-    , msgToSend : a
+    , msgToSend : appMsg
     }
 
 
@@ -73,13 +73,13 @@ create delayTime =
 
 {-| Forward SelfMsgs to the process function
 -}
-type SelfMsg a
-    = DelayExpired Id a
+type SelfMsg appMsg
+    = DelayExpired Id appMsg
 
 
 {-| Call bounce to start the debouncer as well as anytime the desired outccome changes.
 -}
-bounce : BounceDetails a -> DebouncerState -> ( DebouncerState, Cmd (SelfMsg a) )
+bounce : BounceDetails appMsg -> DebouncerState -> ( DebouncerState, Cmd (SelfMsg appMsg) )
 bounce { id, msgToSend } (DebouncerState currentState) =
     let
         counterInc =
@@ -100,7 +100,7 @@ bounce { id, msgToSend } (DebouncerState currentState) =
 
 {-| Forward the debouncer's `SelfMsg`s to this function so that debouncer can manage its state and fire the delayed commands when it is neccessary
 -}
-process : SelfMsg a -> DebouncerState -> ( DebouncerState, Cmd a )
+process : SelfMsg appMsg -> DebouncerState -> ( DebouncerState, Cmd appMsg )
 process (DelayExpired id msg) (DebouncerState state) =
     let
         remainingMessages =
