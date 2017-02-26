@@ -1,12 +1,4 @@
-module Debouncer
-    exposing
-        ( DebouncerState
-        , BounceDetails
-        , SelfMsg
-        , create
-        , bounce
-        , process
-        )
+effect module Debouncer where { command = MyCmd } exposing (bounce)
 
 {-|
 
@@ -15,22 +7,10 @@ For every bounce the timer "restarts" and the new message takes over.
 If there is no new message for a given id in the specified delay time frame, the last message is sent to your app. 
 
 
-## Debouncer State
-
-@docs DebouncerState
-@docs create
-
-
 ## Starting and bouncing the Debouncer
 
-@docs BounceDetails
 @docs bounce
 
-
-## Internal message handling
-
-@docs SelfMsg
-@docs process
 
 -}
 
@@ -38,86 +18,93 @@ import Time exposing (Time)
 import Task exposing (Task)
 import Process
 import Dict exposing (Dict)
+import Platform
 
 
 type alias Id =
     String
 
 
+type MyCmd msg 
+    = Bounce Id Time msg
+
+
+{-| Call bounce to start the debouncer as well as anytime the desired outcome changes.
+-}
+bounce : Id -> Time -> msg -> Cmd msg
+bounce id delay msg =
+    command (Bounce id delay msg)
+
+
+cmdMap : (a -> b) -> MyCmd a -> MyCmd b
+cmdMap tagger (Bounce id delay msg) =
+    Bounce id delay (tagger msg)    
+
+
+
+
+-- MANAGER
+
 {-| The state of tagged debouncers
 -}
-type DebouncerState
-    = DebouncerState
-        { delayTime : Time
-        , pendingMessages : Dict Id Int
-        }
+type alias State =  
+    Dict Id Int
 
 
-{-| Pass these details to the bounce function to start / bounce the debouncer
--}
-type alias BounceDetails a =
-    { id : Id
-    , msgToSend : a
-    }
-
-
-{-| Create tagged debouncers with a given delay time (shared accross all of them)
--}
-create : Time -> DebouncerState
-create delayTime =
-    DebouncerState
-        { delayTime = delayTime
-        , pendingMessages = Dict.empty
-        }
+init : Task Never State
+init =
+    Task.succeed Dict.empty
 
 
 {-| Forward SelfMsgs to the process function
 -}
-type SelfMsg a
-    = DelayExpired Id a
+type SelfMsg msg
+    = DelayExpired Id msg
 
 
-{-| Call bounce to start the debouncer as well as anytime the desired outccome changes.
--}
-bounce : BounceDetails a -> DebouncerState -> ( DebouncerState, Cmd (SelfMsg a) )
-bounce { id, msgToSend } (DebouncerState currentState) =
+(&>) t1 t2 =
+  Task.andThen (\_ -> t2) t1
+  
+
+onEffects : Platform.Router msg (SelfMsg msg) -> List (MyCmd msg) -> State -> Task Never State
+onEffects router newCmds state =
     let
         counterInc =
             Maybe.map ((+) 1) >> Maybe.withDefault 1 >> Just
 
-        delayedCmd =
-            Task.perform
-                (always (DelayExpired id msgToSend))
-                (Process.sleep currentState.delayTime)
+        toDelayedSelfMsg (Bounce id delay msg) =
+            Process.spawn
+                (Process.sleep delay &> Platform.sendToSelf router (DelayExpired id msg))
+
+        sleepTasks =
+            newCmds
+                |> List.map toDelayedSelfMsg
+                |> Task.sequence
 
         updatedState =
-            { currentState
-                | pendingMessages = currentState.pendingMessages |> Dict.update id counterInc
-            }
+            newCmds
+                |> List.foldr
+                    (\(Bounce id _ _) state -> state |> Dict.update id counterInc)
+                    state
     in
-        ( DebouncerState updatedState, delayedCmd )
+        sleepTasks &> Task.succeed updatedState
 
 
-{-| Forward the debouncer's `SelfMsg`s to this function so that debouncer can manage its state and fire the delayed commands when it is neccessary
+{-| The debouncer's `SelfMsg`s are forwarded to this function so that debouncer can manage its state 
+and send back the delayed messages to the app when it is neccessary
 -}
-process : SelfMsg a -> DebouncerState -> ( DebouncerState, Cmd a )
-process (DelayExpired id msg) (DebouncerState state) =
+onSelfMsg : Platform.Router msg (SelfMsg msg) -> (SelfMsg msg) -> State -> Task Never State
+onSelfMsg router (DelayExpired id msg) state =
     let
         remainingMessages =
-            (state.pendingMessages |> Dict.get id |> Maybe.withDefault 0) - 1
+            (state |> Dict.get id |> Maybe.withDefault 0) - 1
 
     in
         if remainingMessages == 0 then
-            DebouncerState
-                { state
-                    | pendingMessages = state.pendingMessages |> Dict.remove id
-                }
-                ! [ (Task.perform identity (Task.succeed msg)) ]
+            Platform.sendToApp router msg &> Task.succeed (state |> Dict.remove id)
+
         else if remainingMessages > 0 then
-            DebouncerState
-                { state
-                    | pendingMessages = state.pendingMessages |> Dict.insert id remainingMessages
-                }
-                ! []
+            Task.succeed (state |> Dict.insert id remainingMessages)
+
         else
-            Debug.crash "Invalid debouncer state: there was no state informtion for the supplied Id."
+            Task.succeed  (state |> Debug.log "Invalid debouncer state: there was no state informtion for the supplied Id.")

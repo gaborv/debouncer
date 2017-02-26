@@ -31,7 +31,6 @@ type alias Model =
     { email : String
     , phone : String
     , emailState : State
-    , debouncer : Debouncer.DebouncerState
     }
 
 
@@ -40,7 +39,6 @@ init =
     { email = ""
     , phone = ""
     , emailState = Default
-    , debouncer = Debouncer.create (2 * Time.second)
     }
         ! []
 
@@ -52,7 +50,6 @@ init =
 type Msg
     = EmailUpdated String
     | PhoneUpdated String
-    | DebouncerSelfMsg (Debouncer.SelfMsg Msg)
     | ValidateEmail String
     | ValidatePhone String
 
@@ -61,34 +58,17 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         EmailUpdated email ->
-            let
-                ( debouncer, debouncerCmd ) =
-                    model.debouncer |> Debouncer.bounce { id = "email", msgToSend = (ValidateEmail email) }
-            in
-                { model
-                    | debouncer = debouncer
-                    , email = email
-                    , emailState = Typing
-                }
-                    ! [ debouncerCmd |> Cmd.map DebouncerSelfMsg ]
+            { model
+                | email = email
+                , emailState = Typing
+            }
+                ! [ Debouncer.bounce "email" (2 * Time.second) (ValidateEmail email) ]
 
         PhoneUpdated phone ->
-            let
-                ( debouncer, debouncerCmd ) =
-                    model.debouncer |> Debouncer.bounce { id = "phone", msgToSend = (ValidatePhone phone) }
-            in
-                { model
-                    | debouncer = debouncer
-                    , phone = phone
-                }
-                    ! [ debouncerCmd |> Cmd.map DebouncerSelfMsg ]
-
-        DebouncerSelfMsg debouncerMsg ->
-            let
-                ( debouncer, cmd ) =
-                    model.debouncer |> Debouncer.process debouncerMsg
-            in
-                { model | debouncer = debouncer } ! [ cmd ]
+            { model
+                | phone = phone
+            }
+                ! [ Debouncer.bounce "phone" (2 * Time.second) (ValidatePhone phone) ]
 
         ValidateEmail email ->
             let 
